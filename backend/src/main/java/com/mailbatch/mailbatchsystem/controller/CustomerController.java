@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -80,6 +81,17 @@ public class CustomerController {
         log.info("批量删除客户请求: ids={}", ids);
         customerService.deleteCustomers(ids);
         return Result.success("批量删除成功");
+    }
+
+    /**
+     * 获取所有客户标签列表
+     * GET /api/customers/tags
+     */
+    @GetMapping("/tags")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
+    public Result<List<String>> getAllTags() {
+        log.info("获取所有客户标签");
+        return Result.success(customerService.getAllTags());
     }
 
     /**

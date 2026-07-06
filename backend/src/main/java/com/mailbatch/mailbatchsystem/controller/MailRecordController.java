@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -42,6 +43,18 @@ public class MailRecordController {
             batchId, customerId, status, keyword, pageable);
 
         return Result.success(response);
+    }
+
+    /**
+     * 获取仪表盘统计数据
+     * GET /api/records/dashboard
+     */
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
+    public Result<DashboardStats> getDashboardStats() {
+        log.info("获取仪表盘统计数据");
+        DashboardStats stats = mailRecordService.getDashboardStats();
+        return Result.success(stats);
     }
 
     /**
