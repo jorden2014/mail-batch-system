@@ -2,7 +2,7 @@
   <div class="login-container">
     <el-card class="login-card" shadow="hover">
       <template #header>
-        <div style="text-align: center; font-size: 22px; font-weight: bold">📧 邮件批量发送系统</div>
+        <div style="text-align: center; font-size: 22px; font-weight: bold">ellen专属邮件发送系统</div>
       </template>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="0" size="large">
         <el-form-item prop="username">
