@@ -6,9 +6,9 @@ server:
 spring:
   # 数据库配置
   datasource:
-    url: jdbc:mysql://20.77.255.98:3306/mail_batch?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/mail_batch?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
-    password: MailBatch@2026
+    password: root123
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -27,8 +27,8 @@ spring:
 
   # Redis配置
   data:
-    redis: 
-      host: 20.77.255.98
+    redis:
+      host: localhost
       port: 6379
       password: Redis@MailBatch2026
       database: 0
@@ -73,9 +73,9 @@ mail:
     # 最大重试次数
     max-retry: 3
     # 队列名称
-    queue-name: mail:queue
+    queue-name: 'mail:queue'
     # 进度key前缀
-    progress-prefix: "mail:progress:"
+    progress-prefix: 'mail:progress:'
 
 # JWT配置
 jwt:

@@ -1,156 +1,140 @@
 <template>
-  <div>
-    <el-tabs v-model="activeTab">
-      <!-- SMTP 配置 -->
-      <el-tab-pane label="邮箱配置" name="smtp">
-        <el-card shadow="never" style="max-width: 600px">
-          <el-form ref="smtpFormRef" :model="smtpForm" :rules="smtpRules" label-width="120px">
-            <el-form-item label="SMTP 主机" prop="host">
-              <el-input v-model="smtpForm.host" placeholder="smtp.exmail.qq.com" />
-            </el-form-item>
-            <el-form-item label="端口" prop="port">
-              <el-input-number v-model="smtpForm.port" :min="1" :max="65535" />
-            </el-form-item>
-            <el-form-item label="账号" prop="username">
-              <el-input v-model="smtpForm.username" placeholder="企业邮箱地址" />
-            </el-form-item>
-            <el-form-item label="授权码" prop="password">
-              <el-input v-model="smtpForm.password" type="password" show-password placeholder="SMTP授权码（非邮箱密码）" />
-            </el-form-item>
-            <el-form-item label="启用SSL">
-              <el-switch v-model="smtpForm.ssl" />
-            </el-form-item>
-            <el-form-item label="发件人名称" prop="senderName">
-              <el-input v-model="smtpForm.senderName" placeholder="如：XX公司" />
-            </el-form-item>
-            <el-form-item label="邮件签名">
-              <el-input v-model="smtpForm.senderSignature" type="textarea" :rows="3" placeholder="可选，邮件末尾签名" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" :loading="saving" @click="saveSmtp">保存配置</el-button>
-              <el-button @click="testSmtp" :loading="testing">测试连接</el-button>
-            </el-form-item>
-          </el-form>
-        </el-card>
-      </el-tab-pane>
+  <div style="padding: 20px;">
+    <h2>系统设置</h2>
+    
+    <!-- 常见邮箱配置说明 -->
+    <el-card style="margin-top: 20px;" type="info">
+      <template #header>
+        <div>📋 常见邮箱 SMTP 配置参考</div>
+      </template>
+      <el-table :data="mailPresets" border size="small" style="width: 100%">
+        <el-table-column prop="name" label="邮箱类型" width="140" />
+        <el-table-column prop="host" label="SMTP 主机" />
+        <el-table-column prop="port" label="端口" width="100" />
+        <el-table-column prop="ssl" label="SSL" width="70" />
+        <el-table-column prop="starttls" label="STARTTLS" width="90" />
+        <el-table-column prop="note" label="说明" />
+      </el-table>
+      <el-alert type="warning" :closable="false" style="margin-top: 12px;">
+        <template #title>⚠️ 注意事项</template>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li><b>QQ 邮箱 / 腾讯企业邮箱：</b>密码栏填的是「授权码」，不是登录密码</li>
+          <li>授权码获取：登录邮箱 → 设置 → 账户 → 开启 SMTP/POP3/IMAP → 生成授权码</li>
+          <li><b>发件人邮箱</b>必须与认证邮箱一致，否则会报 <code>501 Mail from address must be same as authorization user</code></li>
+          <li>企业邮箱若开启安全登录，需使用「客户端专用密码」</li>
+        </ul>
+      </el-alert>
+    </el-card>
 
-      <!-- 发送参数 -->
-      <el-tab-pane label="发送参数" name="params">
-        <el-card shadow="never" style="max-width: 600px">
-          <el-form ref="paramsFormRef" :model="paramsForm" :rules="paramsRules" label-width="140px">
-            <el-form-item label="发送间隔（秒）" prop="intervalSeconds">
-              <el-input-number v-model="paramsForm.intervalSeconds" :min="1" :max="60" />
-              <span style="margin-left: 8px; color: #999">每封邮件间隔时间</span>
-            </el-form-item>
-            <el-form-item label="最大重试次数" prop="maxRetryCount">
-              <el-input-number v-model="paramsForm.maxRetryCount" :min="0" :max="10" />
-            </el-form-item>
-            <el-form-item label="单次最大发送数" prop="maxBatchSize">
-              <el-input-number v-model="paramsForm.maxBatchSize" :min="1" :max="1000" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" :loading="saving" @click="saveParams">保存参数</el-button>
-            </el-form-item>
-          </el-form>
-        </el-card>
-      </el-tab-pane>
-    </el-tabs>
+    <!-- 发件人配置 -->
+    <el-card style="margin-top: 20px;">
+      <template #header>
+        <div>发件人配置</div>
+      </template>
+      
+      <el-form :model="form" label-width="120px">
+        <el-form-item label="SMTP 主机">
+          <el-input v-model="form.smtpHost" placeholder="smtp.qq.com" />
+        </el-form-item>
+        <el-form-item label="SMTP 端口">
+          <el-select v-model="form.smtpPort" style="width: 100%">
+            <el-option label="587 (STARTTLS)" :value="587" />
+            <el-option label="465 (SSL)" :value="465" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="发件邮箱">
+          <el-input v-model="form.smtpUsername" placeholder="support@yourcompany.com" />
+        </el-form-item>
+        <el-form-item label="邮箱授权码">
+          <el-input v-model="form.smtpPassword" type="password" placeholder="邮箱密码或授权码" show-password />
+        </el-form-item>
+        <el-form-item label="SSL 启用">
+          <el-switch v-model="form.smtpSslEnable" />
+        </el-form-item>
+        <el-form-item label="STARTTLS 启用">
+          <el-switch v-model="form.smtpStartTlsEnable" />
+        </el-form-item>
+        
+        <el-form-item>
+          <el-button type="primary" @click="handleSave" :loading="saving">保存配置</el-button>
+          <el-button @click="handleTest" :loading="testing">测试连接</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance } from 'element-plus'
-import { getSmtpConfig, updateSmtpConfig, getSendParams, updateSendParams } from '../api/config'
-import type { SmtpConfig, SendParams } from '../utils/types'
+import { getMailConfig, updateMailConfig, testMailConfig } from '../api/config'
 
-const activeTab = ref('smtp')
+const mailPresets = ref([
+  { name: '📧 QQ 邮箱', host: 'smtp.qq.com', port: '587 / 465', ssl: '465 时开', starttls: '587 时开', note: '授权码填密码栏' },
+  { name: '🏢 腾讯企业邮箱', host: 'smtp.exmail.qq.com', port: '587 / 465', ssl: '465 时开', starttls: '587 时开', note: '用客户端专用密码' },
+  { name: '📨 网易 163', host: 'smtp.163.com', port: '465', ssl: '✅', starttls: '❌', note: '授权码填密码栏' },
+  { name: '📮 Gmail', host: 'smtp.gmail.com', port: '587', ssl: '❌', starttls: '✅', note: '需开启不安全应用访问' },
+])
+
+const form = ref({
+  smtpHost: '',
+  smtpPort: 587,
+  smtpUsername: '',
+  smtpPassword: '',
+  smtpSslEnable: false,
+  smtpStartTlsEnable: true
+})
+
 const saving = ref(false)
 const testing = ref(false)
 
-const smtpFormRef = ref<FormInstance>()
-const paramsFormRef = ref<FormInstance>()
-
-const smtpForm = reactive<SmtpConfig>({
-  host: 'smtp.exmail.qq.com',
-  port: 465,
-  username: '',
-  password: '',
-  ssl: true,
-  senderName: '',
-  senderSignature: '',
-})
-
-const paramsForm = reactive<SendParams>({
-  intervalSeconds: 3,
-  maxRetryCount: 3,
-  maxBatchSize: 500,
-})
-
-const smtpRules = {
-  host: [{ required: true, message: '请输入SMTP主机', trigger: 'blur' }],
-  port: [{ required: true, message: '请输入端口', trigger: 'blur' }],
-  username: [{ required: true, message: '请输入邮箱账号', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入授权码', trigger: 'blur' }],
-}
-
-const paramsRules = {
-  intervalSeconds: [{ required: true, message: '请输入发送间隔', trigger: 'blur' }],
-  maxRetryCount: [{ required: true, message: '请输入重试次数', trigger: 'blur' }],
-  maxBatchSize: [{ required: true, message: '请输入最大发送数', trigger: 'blur' }],
-}
-
-async function loadSmtp() {
+// 加载配置
+const loadConfig = async () => {
   try {
-    const res = await getSmtpConfig()
-    Object.assign(smtpForm, res.data)
-  } catch {}
+    const res = await getMailConfig()
+    if (res.data) {
+      const d = res.data
+      form.value = {
+        smtpHost: d.smtpHost || '',
+        smtpPort: d.smtpPort || 587,
+        smtpUsername: d.smtpUsername || '',
+        smtpPassword: '',  // 密码不回填
+        smtpSslEnable: d.smtpSslEnable ?? false,
+        smtpStartTlsEnable: d.smtpStartTlsEnable ?? true
+      }
+    }
+  } catch (e) {
+    ElMessage.error('加载配置失败')
+  }
 }
 
-async function loadParams() {
-  try {
-    const res = await getSendParams()
-    Object.assign(paramsForm, res.data)
-  } catch {}
-}
-
-async function saveSmtp() {
-  await smtpFormRef.value?.validate()
+// 保存配置
+const handleSave = async () => {
   saving.value = true
   try {
-    await updateSmtpConfig(smtpForm)
-    ElMessage.success('SMTP配置已保存')
+    await updateMailConfig(form.value)
+    ElMessage.success('配置已保存')
+  } catch (e) {
+    ElMessage.error('保存失败')
   } finally {
     saving.value = false
   }
 }
 
-async function testSmtp() {
+// 测试连接
+const handleTest = async () => {
   testing.value = true
   try {
-    await updateSmtpConfig(smtpForm)
-    ElMessage.success('连接测试成功')
-  } catch {
+    await testMailConfig(form.value)
+    ElMessage.success('连接测试成功！')
+  } catch (e) {
     ElMessage.error('连接测试失败')
   } finally {
     testing.value = false
   }
 }
 
-async function saveParams() {
-  await paramsFormRef.value?.validate()
-  saving.value = true
-  try {
-    await updateSendParams(paramsForm)
-    ElMessage.success('发送参数已保存')
-  } finally {
-    saving.value = false
-  }
-}
-
 onMounted(() => {
-  loadSmtp()
-  loadParams()
+  loadConfig()
 })
 </script>

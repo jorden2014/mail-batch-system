@@ -202,42 +202,49 @@ async function handleSend() {
 
   sending.value = true
   try {
-    const res = await sendMail({
+    const batchId = await sendMail({
       templateId: selectedTemplateId.value || undefined,
       customerIds: selectedIds.value,
       subject: mailSubject.value,
       body: mailBody.value,
     })
-    ElMessage.success('发送任务已提交')
-    showPreview.value = false
-    showProgress.value = true
-    progress.value.batchId = res.data.batchId
-    pollProgress(res.data.batchId)
-  } catch {
-    // 错误已处理
-  } finally {
-    sending.value = false
-  }
-}
-
-function pollProgress(batchId: string) {
-  progressTimer = setInterval(async () => {
-    try {
-      const res = await getProgress(batchId)
-      progress.value = res.data
-      if (res.data.status === 'COMPLETED' || res.data.status === 'CANCELLED') {
+    console.log('发送响应:', batchId)
+    if (batchId && typeof batchId === 'string') {
+      ElMessage.success('发送任务已提交')
+      showPreview.value = false
+      showProgress.value = true
+      progress.value.batchId = batchId
+      pollProgress(batchId)
+    } else {
+      ElMessage.error('提交失败，响应格式错误')
+    }
+  const evtSource = new EventSource(url)
+  
+  evtSource.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    if (data.code === 200 && data.data) {
+      progress.value = data.data
+      if (data.data.status === 'COMPLETED' || data.data.status === 'CANCELLED') {
+        evtSource.close()
         if (progressTimer) clearInterval(progressTimer)
         progressTimer = null
-        if (res.data.failed > 0) {
-          ElMessage.warning(`发送完成，${res.data.failed} 封失败`)
+        if (data.data.failed > 0) {
+          ElMessage.warning(`发送完成，${data.data.failed} 封失败`)
         } else {
           ElMessage.success('全部发送成功！')
         }
       }
-    } catch {
-      if (progressTimer) clearInterval(progressTimer)
     }
-  }, 2000)
+  }
+  
+  evtSource.addEventListener('complete', (event) => {
+    evtSource.close()
+  })
+  
+  evtSource.onerror = (err) => {
+    console.error('SSE 连接错误:', err)
+    evtSource.close()
+  }
 }
 
 async function handleCancel() {

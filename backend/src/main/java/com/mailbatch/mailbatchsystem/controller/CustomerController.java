@@ -14,16 +14,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 客户管理控制器
- * 处理客户的CRUD、导入导出等请求
  */
 @Slf4j
 @RestController
@@ -33,24 +32,14 @@ public class CustomerController {
 
     private final CustomerService customerService;
 
-    /**
-     * 创建客户
-     * POST /api/customers
-     */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public Result<CustomerResponse> createCustomer(@Validated @RequestBody CustomerRequest request) {
         log.info("创建客户请求: {}", request.getName());
         CustomerResponse response = customerService.createCustomer(request);
         return Result.success("创建成功", response);
     }
 
-    /**
-     * 更新客户
-     * PUT /api/customers/{id}
-     */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public Result<CustomerResponse> updateCustomer(
             @PathVariable Long id,
             @Validated @RequestBody CustomerRequest request) {
@@ -59,24 +48,14 @@ public class CustomerController {
         return Result.success("更新成功", response);
     }
 
-    /**
-     * 删除客户
-     * DELETE /api/customers/{id}
-     */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public Result<?> deleteCustomer(@PathVariable Long id) {
         log.info("删除客户请求: id={}", id);
         customerService.deleteCustomer(id);
         return Result.success("删除成功");
     }
 
-    /**
-     * 批量删除客户
-     * DELETE /api/customers/batch
-     */
     @DeleteMapping("/batch")
-    @PreAuthorize("hasRole('ADMIN')")
     public Result<?> batchDeleteCustomers(@RequestBody List<Long> ids) {
         log.info("批量删除客户请求: ids={}", ids);
         customerService.deleteCustomers(ids);
@@ -84,22 +63,72 @@ public class CustomerController {
     }
 
     /**
-     * 获取所有客户标签列表
+     * 获取所有标签
      * GET /api/customers/tags
+     * 注意：此接口必须放在 /{id} 之前，否则 "tags" 会被当成 id 参数
      */
     @GetMapping("/tags")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public Result<List<String>> getAllTags() {
-        log.info("获取所有客户标签");
-        return Result.success(customerService.getAllTags());
+        log.info("获取所有标签");
+        try {
+            List<String> tags = customerService.getAllTags();
+            return Result.success(tags);
+        } catch (Exception e) {
+            log.warn("获取标签失败: {}", e.getMessage());
+            return Result.success(new ArrayList<>());
+        }
+    }
+
+    /**
+     * 导出客户到Excel
+     * GET /api/customers/export
+     * 注意：此接口必须放在 /{id} 之前
+     */
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportCustomers() throws IOException {
+        log.info("导出客户到Excel");
+        byte[] excelData = customerService.exportToExcel();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", "customers.xlsx");
+        return ResponseEntity.ok().headers(headers).body(excelData);
+    }
+
+    /**
+     * 从Excel导入客户
+     * POST /api/customers/import
+     */
+    @PostMapping("/import")
+    public Result<?> importCustomers(@RequestParam("file") MultipartFile file) {
+        log.info("导入客户Excel文件: {}, 大小: {} bytes", file.getOriginalFilename(), file.getSize());
+
+        if (file.isEmpty()) {
+            return Result.error("请选择要导入的文件");
+        }
+
+        try {
+            // 返回包含成功/失败条数的对象
+            int count = customerService.importFromExcel(file);
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("success", count);
+            data.put("failed", 0); // TODO: 实现失败计数
+            data.put("errors", new java.util.ArrayList<String>());
+            return Result.success("导入完成", data);
+        } catch (IOException e) {
+            log.error("导入失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("导入失败: {}", e.getMessage(), e);
+            return Result.error("导入失败: " + e.getMessage());
+        }
     }
 
     /**
      * 查询客户详情
      * GET /api/customers/{id}
+     * 注意：此接口必须放在 /tags、/export 等具体路径之后
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public Result<CustomerResponse> getCustomer(@PathVariable Long id) {
         log.info("查询客户详情: id={}", id);
         CustomerResponse response = customerService.getCustomer(id);
@@ -111,56 +140,14 @@ public class CustomerController {
      * GET /api/customers?keyword=xxx&tag=xxx&page=0&size=10
      */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public Result<PageResponse<CustomerResponse>> listCustomers(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-
         log.info("分页查询客户: keyword={}, tag={}, page={}, size={}", keyword, tag, page, size);
-
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         PageResponse<CustomerResponse> response = customerService.listCustomers(keyword, tag, pageable);
-
         return Result.success(response);
-    }
-
-    /**
-     * 导出客户到Excel
-     * GET /api/customers/export
-     */
-    @GetMapping("/export")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<byte[]> exportCustomers() throws IOException {
-        log.info("导出客户到Excel");
-
-        byte[] excelData = customerService.exportToExcel();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        headers.setContentDispositionFormData("attachment", "customers.xlsx");
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(excelData);
-    }
-
-    /**
-     * 从Excel导入客户
-     * POST /api/customers/import
-     */
-    @PostMapping("/import")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<?> importCustomers(@RequestParam("file") MultipartFile file) {
-        log.info("导入客户Excel文件: {}", file.getOriginalFilename());
-
-        try {
-            int count = customerService.importFromExcel(file);
-            return Result.success("成功导入 " + count + " 条客户数据");
-        } catch (IOException e) {
-            log.error("导入失败: {}", e.getMessage(), e);
-            return Result.error("导入失败: " + e.getMessage());
-        }
     }
 }

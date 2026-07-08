@@ -1,44 +1,36 @@
-import axios from 'axios'
-import { ElMessage } from 'element-plus'
-import router from '../router'
+import axios from 'axios';
+import { ElMessage } from 'element-plus';
+import router from '../router';
+import { useUserStore } from '../stores/user';
 
-const request = axios.create({
+const instance = axios.create({
   baseURL: '/api',
-  timeout: 30000,
-})
+  timeout: 120000,
+});
 
-// 请求拦截器：自动带 JWT token
-request.interceptors.request.use(
+instance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    const userStore = useUserStore();
+    if (userStore.token) {
+      config.headers.Authorization = `Bearer ${userStore.token}`;
     }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
-
-// 响应拦截器：统一处理错误
-request.interceptors.response.use(
-  (response) => {
-    const res = response.data
-    if (res.code && res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
-      return Promise.reject(new Error(res.message))
-    }
-    return res
+    return config;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      router.push('/login')
-      ElMessage.warning('登录已过期，请重新登录')
-    } else {
-      ElMessage.error(error.response?.data?.message || error.message || '网络错误')
-    }
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
-export default request
+instance.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    if (error.response?.status === 401) {
+      const userStore = useUserStore();
+      userStore.logout();
+      router.push('/login');
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default instance;

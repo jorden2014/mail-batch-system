@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 # 配置变量（根据需要修改）
 PROJECT_DIR="/home/admin/.openclaw/workspace/mail-batch-system"
 FRONTEND_DIR="${PROJECT_DIR}/frontend"
-DEPLOY_DIR="/var/www/mail-batch-system"  # 部署目录（Nginx 静态目录）
+DEPLOY_DIR="/usr/share/nginx/html/mail-batch-system"  # 部署目录（Nginx 静态目录）
 BACKUP_DIR="${PROJECT_DIR}/backups"
 BUILD_DIR="${FRONTEND_DIR}/dist"
 
