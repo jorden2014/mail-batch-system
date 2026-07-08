@@ -80,6 +80,7 @@ public class SecurityConfig {
             .rememberMe(remember -> remember
                 .key("uniqueAndSecret")
                 .tokenValiditySeconds(86400)  // 24小时
+                .userDetailsService(userDetailsService)
             );
 
         return http.build();
@@ -94,6 +95,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
             "http://120.77.255.98:3000",
             "http://localhost:3000",
+            "http://localhost:3001",
             "https://wy2026.top",
             "https://wy2026.top/mail/"
         ));

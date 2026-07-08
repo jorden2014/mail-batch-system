@@ -44,8 +44,14 @@ public class MailController {
             String batchId = mailSendService.submitSendTask(request);
             return Result.success("发送任务已提交", batchId);
         } catch (Exception e) {
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && errorMsg.contains("timeout")) {
+                errorMsg = "Redis连接超时，请检查Redis服务是否正常";
+            } else if (errorMsg != null && errorMsg.contains("Authentication")) {
+                errorMsg = "Redis认证失败，请检查密码配置";
+            }
             log.error("提交发送任务失败: {}", e.getMessage(), e);
-            return Result.error("提交失败: " + e.getMessage());
+            return Result.error("提交失败: " + errorMsg);
         }
     }
 
