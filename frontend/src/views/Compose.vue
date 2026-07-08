@@ -202,34 +202,23 @@ async function handleSend() {
 
   sending.value = true
   try {
-    const res = await sendMail({
+    const batchId = await sendMail({
       templateId: selectedTemplateId.value || undefined,
       customerIds: selectedIds.value,
       subject: mailSubject.value,
       body: mailBody.value,
     })
-    console.log('发送响应:', res)
-    if (res.code === 200 && res.data) {
+    console.log('发送响应:', batchId)
+    if (batchId && typeof batchId === 'string') {
       ElMessage.success('发送任务已提交')
       showPreview.value = false
       showProgress.value = true
-      progress.value.batchId = res.data
-      alert('batchId: ' + res.data)  // 调试
-      pollProgress(res.data)
+      progress.value.batchId = batchId
+      pollProgress(batchId)
     } else {
-      ElMessage.error(res.message || '提交失败，请检查配置')
+      ElMessage.error('提交失败，响应格式错误')
     }
-  } catch (error: any) {
-    console.error('发送错误:', error)
-    ElMessage.error(error.message || '发送失败，请稍后重试')
-  } finally {
-    sending.value = false
-  }
-}
-
-function pollProgress(batchId: string) {
-  progressTimer = null
-  const evtSource = new EventSource(`/api/mail/progress/${batchId}`)
+  const evtSource = new EventSource(url)
   
   evtSource.onmessage = (event) => {
     const data = JSON.parse(event.data)

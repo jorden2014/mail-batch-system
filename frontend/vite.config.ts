@@ -5,7 +5,7 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig({
-  base: '/mail/',  // 部署在 /mail/ 子路径下
+  // base: '/mail/',  // 开发环境不需要子路径
   plugins: [
     vue(),
     AutoImport({
