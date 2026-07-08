@@ -22,29 +22,6 @@ public class MailRecordController {
     private final MailRecordService mailRecordService;
 
     /**
-     * 仪表盘统计
-     * GET /api/records/dashboard
-     */
-    @GetMapping("/dashboard")
-    public Result<?> getDashboardStats() {
-        log.info("获取仪表盘统计");
-        try {
-            // TODO: 实现真实的统计查询
-            // 暂时返回默认值
-            java.util.Map<String, Object> stats = new java.util.HashMap<>();
-            stats.put("totalEmails", 0);
-            stats.put("successCount", 0);
-            stats.put("failedCount", 0);
-            stats.put("pendingCount", 0);
-            stats.put("todayCount", 0);
-            return Result.success(stats);
-        } catch (Exception e) {
-            log.warn("获取仪表盘统计失败: {}", e.getMessage());
-            return Result.success(new java.util.HashMap<>());
-        }
-    }
-
-    /**
      * 分页查询邮件记录
      * GET /api/records?batchId=xxx&customerId=xxx&status=PENDING&keyword=xxx&page=0&size=10
      */
