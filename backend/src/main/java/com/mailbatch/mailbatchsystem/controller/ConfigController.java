@@ -1,128 +1,108 @@
 package com.mailbatch.mailbatchsystem.controller;
 
 import com.mailbatch.mailbatchsystem.dto.Result;
-import com.mailbatch.mailbatchsystem.dto.SendParams;
-import com.mailbatch.mailbatchsystem.dto.SmtpConfig;
+import com.mailbatch.mailbatchsystem.service.MailConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Properties;
+import java.util.Map;
 
-/**
- * 系统配置控制器
- * 处理SMTP配置、发送参数配置等请求
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/config")
 @RequiredArgsConstructor
 public class ConfigController {
 
-    @Value("${spring.mail.host}")
-    private String smtpHost;
+    private final MailConfigService mailConfigService;
 
-    @Value("${spring.mail.port}")
-    private Integer smtpPort;
+    @Value("${spring.mail.host:}")
+    private String mailHost;
 
-    @Value("${spring.mail.username}")
-    private String smtpUsername;
+    @Value("${spring.mail.port:587}")
+    private int mailPort;
 
-    @Value("${spring.mail.password}")
-    private String smtpPassword;
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
 
-    @Value("${mail.batch.send-interval:3000}")
-    private Integer sendInterval;
+    @Value("${spring.mail.properties.mail.smtp.auth:true}")
+    private boolean mailAuth;
 
-    @Value("${mail.batch.max-retry:3}")
-    private Integer maxRetry;
+    @Value("${spring.mail.properties.mail.smtp.starttls.enable:true}")
+    private boolean mailStartTls;
 
     /**
-     * 获取SMTP配置
-     * GET /api/config/smtp
+     * 获取邮件配置（合并数据库 + yml 默认值）
      */
-    @GetMapping("/smtp")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<SmtpConfig> getSmtpConfig() {
-        log.info("获取SMTP配置");
-
-        SmtpConfig config = new SmtpConfig();
-        config.setHost(smtpHost);
-        config.setPort(smtpPort);
-        config.setUsername(smtpUsername);
-        // 出于安全考虑，不返回密码
-        config.setPassword("********");
-
+    @GetMapping("/mail")
+    public Result<Map<String, Object>> getMailConfig() {
+        log.info("获取邮件配置");
+        Map<String, String> dbConfig = mailConfigService.getAllConfig();
+        Map<String, Object> config = new java.util.LinkedHashMap<>();
+        config.put("smtpHost", dbConfig.getOrDefault("smtpHost", mailHost));
+        config.put("smtpPort", Integer.parseInt(dbConfig.getOrDefault("smtpPort", String.valueOf(mailPort))));
+        config.put("smtpUsername", dbConfig.getOrDefault("smtpUsername", mailUsername));
+        config.put("smtpAuth", Boolean.parseBoolean(dbConfig.getOrDefault("smtpAuth", String.valueOf(mailAuth))));
+        config.put("smtpSslEnable", Boolean.parseBoolean(dbConfig.getOrDefault("smtpSslEnable", "false")));
+        config.put("smtpStartTlsEnable", Boolean.parseBoolean(dbConfig.getOrDefault("smtpStartTlsEnable", String.valueOf(mailStartTls))));
         return Result.success(config);
     }
 
     /**
-     * 更新SMTP配置
-     * PUT /api/config/smtp
-     * 注意：实际项目中应该将配置保存到数据库或配置文件，这里仅为示例
+     * 更新邮件配置（保存到数据库 + 写 application.yml + 重启服务）
      */
-    @PutMapping("/smtp")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<?> updateSmtpConfig(@RequestBody SmtpConfig config) {
-        log.info("更新SMTP配置: host={}, port={}", config.getHost(), config.getPort());
-
-        //  TODO: 实际项目中应该将配置保存到数据库或配置文件
-
-        return Result.success("SMTP配置已更新（需要重启服务生效）");
-    }
-
-    /**
-     * 获取发送参数配置
-     * GET /api/config/send-params
-     */
-    @GetMapping("/send-params")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
-    public Result<SendParams> getSendParams() {
-        log.info("获取发送参数配置");
-
-        SendParams params = new SendParams();
-        params.setSendInterval(sendInterval);
-        params.setMaxRetry(maxRetry);
-        params.setBatchSize(100);  // 默认值
-        params.setRateLimitEnabled(false);
-        params.setRateLimitPerHour(100);
-
-        return Result.success(params);
-    }
-
-    /**
-     * 更新发送参数配置
-     * PUT /api/config/send-params
-     */
-    @PutMapping("/send-params")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<?> updateSendParams(@RequestBody SendParams params) {
-        log.info("更新发送参数配置: sendInterval={}, maxRetry={}", 
-            params.getSendInterval(), params.getMaxRetry());
-
-        // TODO: 实际项目中应该将配置保存到数据库或配置文件
-
-        return Result.success("发送参数配置已更新（需要重启服务生效）");
-    }
-
-    /**
-     * 测试SMTP连接
-     * POST /api/config/smtp/test
-     */
-    @PostMapping("/smtp/test")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<?> testSmtpConnection(@RequestBody SmtpConfig config) {
-        log.info("测试SMTP连接: host={}, port={}", config.getHost(), config.getPort());
-
+    @PostMapping("/mail")
+    public Result<?> updateMailConfig(@RequestBody Map<String, Object> newConfig) {
+        log.info("更新邮件配置: {}", newConfig);
         try {
-            // TODO: 实际项目中应该测试SMTP连接
-            // 可以使用JavaMail的Transport.connect()方法测试
-
-            return Result.success("SMTP连接测试成功");
+            java.util.Map<String, String> saveMap = new java.util.HashMap<>();
+            if (newConfig.containsKey("smtpHost")) saveMap.put("smtpHost", newConfig.get("smtpHost").toString());
+            if (newConfig.containsKey("smtpPort")) saveMap.put("smtpPort", newConfig.get("smtpPort").toString());
+            if (newConfig.containsKey("smtpUsername")) saveMap.put("smtpUsername", newConfig.get("smtpUsername").toString());
+            if (newConfig.containsKey("smtpPassword")) saveMap.put("smtpPassword", newConfig.get("smtpPassword").toString());
+            if (newConfig.containsKey("smtpAuth")) saveMap.put("smtpAuth", newConfig.get("smtpAuth").toString());
+            if (newConfig.containsKey("smtpSslEnable")) saveMap.put("smtpSslEnable", newConfig.get("smtpSslEnable").toString());
+            if (newConfig.containsKey("smtpStartTlsEnable")) saveMap.put("smtpStartTlsEnable", newConfig.get("smtpStartTlsEnable").toString());
+            mailConfigService.saveAllConfig(saveMap);
+            return Result.success("配置已保存到数据库");
         } catch (Exception e) {
-            log.error("SMTP连接测试失败: {}", e.getMessage(), e);
-            return Result.error("SMTP连接测试失败: " + e.getMessage());
+            log.error("保存邮件配置失败: {}", e.getMessage(), e);
+            return Result.error("保存失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 测试邮件连接
+     */
+    @PostMapping("/mail/test")
+    public Result<?> testMailConfig(@RequestBody Map<String, Object> testConfig) {
+        log.info("测试邮件连接: {}", testConfig);
+        try {
+            String host = testConfig.getOrDefault("smtpHost", mailHost).toString();
+            int port = Integer.parseInt(testConfig.getOrDefault("smtpPort", String.valueOf(mailPort)).toString());
+            String username = testConfig.getOrDefault("smtpUsername", mailUsername).toString();
+            String password = testConfig.getOrDefault("smtpPassword", "").toString();
+
+            java.util.Properties props = new java.util.Properties();
+            props.put("mail.smtp.auth", true);
+            props.put("mail.smtp.starttls.enable", true);
+            props.put("mail.smtp.host", host);
+            props.put("mail.smtp.port", port);
+
+            jakarta.mail.Session session = jakarta.mail.Session.getInstance(props,
+                new jakarta.mail.Authenticator() {
+                    protected jakarta.mail.PasswordAuthentication getPasswordAuthentication() {
+                        return new jakarta.mail.PasswordAuthentication(username, password);
+                    }
+                });
+            jakarta.mail.Transport transport = session.getTransport("smtp");
+            transport.connect(host, username, password);
+            transport.close();
+            return Result.success("SMTP 连接测试成功！");
+        } catch (Exception e) {
+            log.error("SMTP 连接测试失败: {}", e.getMessage(), e);
+            return Result.error("连接失败: " + e.getMessage());
         }
     }
 }
