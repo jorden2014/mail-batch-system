@@ -63,8 +63,8 @@ spring:
   # 文件上传配置
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      max-file-size: 20MB
+      max-request-size: 20MB
 
 # 自定义配置
 mail:
@@ -77,6 +77,13 @@ mail:
     queue-name: 'mail:queue'
     # 进度key前缀
     progress-prefix: 'mail:progress:'
+
+# 文件上传配置
+file:
+  upload:
+    path: /var/www/uploads
+    url-prefix: /uploads
+    server-domain: http://120.77.255.98
 
 # JWT配置
 jwt:

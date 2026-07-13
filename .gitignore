@@ -27,5 +27,6 @@ Thumbs.db
 # 临时文件
 *.tmp
 *.temp
-backend/logs/app.log
-logs/app.log
+backend/logs/
+logs/
+uploads/
